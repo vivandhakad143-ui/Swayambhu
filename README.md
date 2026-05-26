@@ -1,21 +1,44 @@
-# Swayambhu
+# 🌌 Swayambhu: Next-Gen Zero-Trust Kernel Protection
 
-Swayambhu: The Self-Healing Kernel Sentinel
+**Swayambhu** is an autonomous, eBPF-based security framework designed for real-time kernel integrity monitoring and self-healing. Unlike traditional signature-based antiviruses, Swayambhu provides **Behavioral Integrity Enforcement** at the kernel level, ensuring your system remains secure against memory-corruption and unauthorized execution.
 
-Swayambhu ek high-performance, eBPF-based Self-Healing Autonomous Security System hai. Yeh traditional signature-based antiviruses se aage badhkar, system ke Kernel-level par real-time monitoring, behavioral auditing, aur automated policy enforcement karta hai.
-🚀 Vision
-Security ka matlab sirf "Detect" karna nahi, balki system ko "Resilient" banana hai. Swayambhu (Sanskrit for "Self-manifested") system ke integrity ko khud banaye rakhta hai, chahe kitne bhi advanced memory-corruption ya injection attacks kyun na hon.
-🛡️ Core Features
-eBPF Kernel-Space Guard: sys_openat aur system calls ko hook karke unauthorized access ko EPERM error ke saath block karta hai.
-Behavioral Audit: Process ke text segment ko verify karke shellcode injection ko nanoseconds mein detect aur SIGKILL karta hai.
-Atomic Security: Race conditions (TOCTOU attacks) ko khatam karne ke liye Atomic Transactional Locking ka upyog.
-Constant-Time Logic: Timing-based side-channel attacks ko mitane ke liye branchless, jitter-free execution.
-Dynamic Policy Control: Terminal-based TUI (Control Panel) se live resources ko lock aur baseline updates karna.
-🏗️ Architecture Design
-Detection Layer (eBPF): Kernel hooks.
-Audit Layer (C/Memory): Integrity auditor.
-Governance Layer (Python): Policy Manager & TUI.
+## 🚀 Vision
+Security should be proactive, not reactive. Swayambhu (Sanskrit for "Self-manifested") ensures the system integrity is self-maintained, providing a resilient defense layer against modern exploits.
+
+## 🛡️ Core Features
+* **eBPF Kernel-Space Guard:** Hooks into `sys_openat` and other syscalls for real-time unauthorized access prevention.
+* **Behavioral Audit:** Monitors process integrity to detect and terminate shellcode injection attempts.
+* **Atomic Security:** Implements atomic locking to mitigate TOCTOU (Time-of-Check to Time-of-Use) vulnerabilities.
+* **Deterministic Hashing:** Uses SHA-256 for secure, collision-resistant resource tracking.
+* **Adaptive Policy Manager:** A modular TUI (Terminal User Interface) for live policy enforcement and system updates.
+
+## 📂 Project Structure
+```text
+Swayambhu/
+├── src/
+│   ├── kernel_probe.c    # eBPF Logic (Kernel Sentinel)
+│   ├── policy_manager.py # Main Control Logic (TUI)
+│   └── utils.py          # Hashing & Sync modules
+├── docs/                 # Architecture & Design documentation
+├── README.md
+└── LICENSE
+Quick Start
+Prerequisites
+Linux Kernel 5.x+
+BCC Toolkit & Python3
+sudo apt install bpfcc-tools linux-headers-$(uname -r)
+Installation & Usage
+bash
+# Clone the repository
+git clone [https://github.com/vivandhakad143-ui/Swayambhu.git](https://github.com/vivandhakad143-ui/Swayambhu.git)
+cd Swayambhu
+
+# Run the Policy Manager
+sudo python3 src/policy_manager.py
+
 ⚠️ Security Warning
-Swayambhu direct Kernel-level par kaam karta hai. Galat configuration ya aggressive policy system ko lock kar sakti hai. Isse sirf research aur controlled lab environments mein use karein.
+This tool operates at the Kernel-Level. Improper configuration may impact system stability. Use only in controlled testing environments (e.g., Virtual Machines).
+🤝 Contributing
+Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request.
 📜 License
-MIT License - Swayambhu is a gift to the open-source community for a safer digital future.
+This project is licensed under the MIT License.
