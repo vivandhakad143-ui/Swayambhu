@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# ============================================================
+# Swayambhu Layer 2: LD_PRELOAD Detection
+# Version: 1.0
+# Author: Swayambhu Security Framework
+# Description: Detects malicious LD_PRELOAD injections,
+#              suspicious shared libraries, and environment
+#              variable manipulation attempts.
+# ============================================================
+
+LOG_FILE="/tmp/swayambhu_layer2.log"
+ALERT_COUNT=0
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${GREEN}[+] Swayambhu Layer 2: LD_PRELOAD Detection Active...${NC}" | tee -a $LOG_FILE
+echo "[*] Timestamp: $(date)" | tee -a $LOG_FILE
+echo "-------------------------------------------" | tee -a $LOG_FILE
+
+while true; do
+
+    # -------------------------------------------------------
+    # CHECK 1: LD_PRELOAD in running processes environment
+    # Attackers use LD_PRELOAD to inject malicious .so files
+    # -------------------------------------------------------
+    echo -e "${CYAN}[*] Scanning process environments for LD_PRELOAD...${NC}" | tee -a $LOG_FILE
+
+    for pid in /proc/[0-9]*; do
+        pid_num=$(basename $pid)
+
+        if [ -f "$pid/environ" ]; then
+            # Read environment variables of process
+            env_vars=$(cat "$pid/environ" 2>/dev/null | tr '\0' '\n')
+
+            ld_preload=$(echo "$env_vars" | grep "LD_PRELOAD")
+
+            if [ -n "$ld_preload" ]; then
+                ALERT_COUNT=$((ALERT_COUNT + 1))
+                proc_name=$(cat "$pid/comm" 2>/dev/null)
+                echo -e "${RED}[!] ALERT #$ALERT_COUNT: LD_PRELOAD detected!${NC}" | tee -a $LOG_FILE
+                echo "    PID: $pid_num | Process: $proc_name" | tee -a $LOG_FILE
+                echo "    $ld_preload" | tee -a $LOG_FILE
+
+                # Check if the preloaded library exists and is suspicious
+                lib_path=$(echo "$ld_preload" | cut -d'=' -f2)
+                if [ -f "$lib_path" ]; then
+                    echo -e "${YELLOW}[~] Library found: $lib_path${NC}" | tee -a $LOG_FILE
+                    # Check if library is in suspicious location
+                    if echo "$lib_path" | grep -qE '/tmp/|/dev/shm/|/var/tmp/'; then
+                        echo -e "${RED}[!] CRITICAL: Library loaded from suspicious path!${NC}" | tee -a $LOG_FILE
+                        echo -e "${RED}[!] Terminating PID: $pid_num${NC}" | tee -a $LOG_FILE
+                        kill -9 $pid_num 2>/dev/null
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    # -------------------------------------------------------
+    # CHECK 2: /etc/ld.so.preload tampering detection
+    # This file is used system-wide for preloading libraries
+    # -------------------------------------------------------
+    if [ -f "/etc/ld.so.preload" ]; then
+        ALERT_COUNT=$((ALERT_COUNT + 1))
+        echo -e "${RED}[!] ALERT #$ALERT_COUNT: /etc/ld.so.preload exists!${NC}" | tee -a $LOG_FILE
+        echo "    Contents:" | tee -a $LOG_FILE
+        cat /etc/ld.so.preload | tee -a $LOG_FILE
+        echo -e "${YELLOW}[~] WARNING: This file can be used for system-wide injection!${NC}" | tee -a $LOG_FILE
+    else
+        echo -e "${GREEN}[+] /etc/ld.so.preload: Clean${NC}" | tee -a $LOG_FILE
+    fi
+
+    # -------------------------------------------------------
+    # CHECK 3: Suspicious .so files in temp directories
+    # -------------------------------------------------------
+    echo -e "${CYAN}[*] Scanning for suspicious shared libraries...${NC}" | tee -a $LOG_FILE
+
+    suspicious_libs=$(find /tmp /dev/shm /var/tmp -name "*.so" -o -name "*.so.*" 2>/dev/null)
+
+    if [ -n "$suspicious_libs" ]; then
+        ALERT_COUNT=$((ALERT_COUNT + 1))
+        echo -e "${RED}[!] ALERT #$ALERT_COUNT: Suspicious .so files found!${NC}" | tee -a $LOG_FILE
+        echo "$suspicious_libs" | tee -a $LOG_FILE
+    else
+        echo -e "${GREEN}[+] No suspicious .so files found.${NC}" | tee -a $LOG_FILE
+    fi
+
+    # -------------------------------------------------------
+    # CHECK 4: LD_AUDIT variable detection
+    # LD_AUDIT is another injection vector like LD_PRELOAD
+    # -------------------------------------------------------
+    for pid in /proc/[0-9]*; do
+        pid_num=$(basename $pid)
+        if [ -f "$pid/environ" ]; then
+            ld_audit=$(cat "$pid/environ" 2>/dev/null | tr '\0' '\n' | grep "LD_AUDIT")
+            if [ -n "$ld_audit" ]; then
+                ALERT_COUNT=$((ALERT_COUNT + 1))
+                proc_name=$(cat "$pid/comm" 2>/dev/null)
+                echo -e "${RED}[!] ALERT #$ALERT_COUNT: LD_AUDIT injection detected!${NC}" | tee -a $LOG_FILE
+                echo "    PID: $pid_num | Process: $proc_name" | tee -a $LOG_FILE
+                echo "    $ld_audit" | tee -a $LOG_FILE
+            fi
+        fi
+    done
+
+    # -------------------------------------------------------
+    # CHECK 5: Verify system library integrity (basic)
+    # Check if critical libs have been recently modified
+    # -------------------------------------------------------
+    echo -e "${CYAN}[*] Checking critical library integrity...${NC}" | tee -a $LOG_FILE
+
+    critical_libs=("/lib/x86_64-linux-gnu/libc.so.6" "/lib/x86_64-linux-gnu/libdl.so.2" "/usr/lib/x86_64-linux-gnu/libssl.so.3")
+
+    for lib in "${critical_libs[@]}"; do
+        if [ -f "$lib" ]; then
+            # Check if modified in last 24 hours
+            recently_modified=$(find "$lib" -mtime -1 2>/dev/null)
+            if [ -n "$recently_modified" ]; then
+                echo -e "${YELLOW}[~] WARNING: Critical library recently modified: $lib${NC}" | tee -a $LOG_FILE
+            else
+                echo -e "${GREEN}[+] OK: $lib${NC}" | tee -a $LOG_FILE
+            fi
+        fi
+    done
+
+    echo "[*] Scan complete: $(date) | Total Alerts: $ALERT_COUNT" | tee -a $LOG_FILE
+    echo "-------------------------------------------" | tee -a $LOG_FILE
+
+    sleep 5
+done
