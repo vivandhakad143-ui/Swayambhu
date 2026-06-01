@@ -2,3 +2,4 @@
 [+] Security: XSS Protection active.
 [+] Security: XSS Protection active.
 [!] Vulnerability Scan: Payload tested.
+[!] Vulnerability Scan: Payload tested.
