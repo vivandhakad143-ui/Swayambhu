@@ -1,2 +1,3 @@
 [+] Security: XSS Protection active.
 [+] Security: XSS Protection active.
+[+] Security: XSS Protection active.
